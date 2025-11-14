@@ -1,0 +1,7 @@
+{
+  "name": "Ernest Calculator",
+  "description": "A simple calculator app built with React and Tailwind CSS that allows users to perform basic arithmetic operations like addition, subtraction, multiplication, and division.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
