@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import CalculatorButton from './components/CalculatorButton';
 import HistoryPanel from './components/HistoryPanel';
@@ -12,7 +11,7 @@ declare global {
 }
 
 // For browsers that support SpeechRecognition under a vendor prefix.
-// FIX: Renamed to SpeechRecognitionAPI to avoid shadowing the global SpeechRecognition type.
+// FIX: Renamed to SpeechRecognitionAPI to avoid shadowing the global SpeechRecognition type (if it existed).
 const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 const App: React.FC = () => {
@@ -27,8 +26,8 @@ const App: React.FC = () => {
   // Speech recognition state
   const [isListening, setIsListening] = useState<boolean>(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
-  // FIX: The type `SpeechRecognition` should now resolve correctly because the constant was renamed, removing the name collision.
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // FIX: Use 'any' for the ref type since SpeechRecognition type is not available in the global scope.
+  const recognitionRef = useRef<any>(null);
   const speechTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -49,7 +48,7 @@ const App: React.FC = () => {
       setSpeechError(null);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: any) => {
       if (event.error !== 'no-speech') {
         setSpeechError(`Error: ${event.error}`);
       }
@@ -64,7 +63,7 @@ const App: React.FC = () => {
       }
     };
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: any) => {
       const transcript = event.results[event.results.length - 1][0].transcript.trim();
       processSpeech(transcript);
     };
@@ -287,6 +286,55 @@ const App: React.FC = () => {
   };
 
   const clearHistory = () => setHistory([]);
+
+  // Handle keyboard input
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const { key } = event;
+
+      if (showHistory) {
+        if (key === 'Escape') {
+            setShowHistory(false);
+            event.preventDefault();
+        }
+        return;
+      }
+
+      if (key >= '0' && key <= '9') {
+        event.preventDefault();
+        inputDigit(key);
+      } else if (key === '.') {
+        event.preventDefault();
+        inputDecimal();
+      } else if (['+', '-', '*', '/', '^'].includes(key)) {
+        event.preventDefault();
+        performOperation(key);
+      } else if (key === 'Enter' || key === '=') {
+        event.preventDefault();
+        handleEquals();
+      } else if (key === 'Backspace') {
+        event.preventDefault();
+        if (!waitingForSecondOperand && displayValue.length > 0) {
+            if (displayValue.length === 1) {
+                setDisplayValue('0');
+            } else {
+                setDisplayValue(displayValue.slice(0, -1));
+            }
+        }
+      } else if (key === 'Escape') {
+        event.preventDefault();
+        clearAll();
+      } else if (key === '%') {
+        event.preventDefault();
+        inputPercent();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [displayValue, waitingForSecondOperand, operator, firstOperand, showHistory, inputDigit, inputDecimal, performOperation, handleEquals, clearAll, inputPercent]);
 
   const isCleared = displayValue === '0' && firstOperand === null;
   const displayFontSize = displayValue.length > 9 ? 'text-4xl' : 'text-6xl';
